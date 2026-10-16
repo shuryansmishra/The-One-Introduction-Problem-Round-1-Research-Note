@@ -1,0 +1,2 @@
+# Added networkx for Edmonds' Blossom Max-Weight Combinatorial Matching
+networkx==3.2.1
