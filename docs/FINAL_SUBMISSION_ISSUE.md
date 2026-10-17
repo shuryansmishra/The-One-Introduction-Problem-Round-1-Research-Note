@@ -13,7 +13,7 @@ Team Zero (1 participant: Shuryans Mishra)
 ### Field 2: Public source URL and immutable version
 ```text
 Repository URL: https://github.com/shuryansmishra/The-One-Introduction-Problem-Round-1-Research-Note.git
-40-Character Commit SHA: eaf7b1fb53705e2905a89a81c937593b88bbb675
+40-Character Commit SHA: afa231609b7761793c60d400591ab528a7b398b6
 
 Archive URL: https://github.com/shuryansmishra/The-One-Introduction-Problem-Round-1-Research-Note/raw/main/submission_round2.zip
 Archive SHA-256 Checksum: d070e9b0512b465b8594d7f99d9397ddef92755500caaed00d0653823ef94cb1
