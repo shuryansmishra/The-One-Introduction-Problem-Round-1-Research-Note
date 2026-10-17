@@ -16,7 +16,7 @@ Repository URL: https://github.com/shuryansmishra/The-One-Introduction-Problem-R
 40-Character Commit SHA: a4e3087f35b152b3498fde7ee95d3f315eb3b251
 
 Archive URL: https://github.com/shuryansmishra/The-One-Introduction-Problem-Round-1-Research-Note/raw/main/submission_round2.zip
-Archive SHA-256 Checksum: 79d0a75853b68ee6eae6eb793422bf37f5512343e753bb9c9b4d1f8fbe0122aa
+Archive SHA-256 Checksum: 9524f47871c317a117ee869ccfe64d66b6b3b68f730e3120cda4e72ebb7ba2c2
 ```
 
 ### Field 3: Report and results URLs
