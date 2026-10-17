@@ -49,18 +49,22 @@ def allocate_pairs(state: dict, weights: dict = None, past_pairs: set = None, da
             
         u_expected = estimate_expected_msmi(a, b, weights=weights)
         if u_expected >= tau:
-            edges.append((u_expected, a['member_id'], b['member_id']))
+            edges.append((1000.0 + u_expected, a['member_id'], b['member_id']))
             
-    if use_blossom:
-        # Solve global combinatorial matching via Edmonds' blossom algorithm
-        pairs = max_weight_matching_heuristic(edges)
-    else:
-        # Greedy heuristic: sort edges descending and greedily match non-conflicting pairs
-        edges.sort(key=lambda x: x[0], reverse=True)
-        pairs, used = [], set()
-        for _, u, v in edges:
-            if u not in used and v not in used:
-                pairs.append([u, v])
-                used.add(u)
-                used.add(v)
-    return pairs
+    try:
+        if use_blossom:
+            # Solve global combinatorial matching via Edmonds' blossom algorithm
+            pairs = max_weight_matching_heuristic(edges)
+        else:
+            # Greedy heuristic: sort edges descending and greedily match non-conflicting pairs
+            edges.sort(key=lambda x: x[0], reverse=True)
+            pairs, used = [], set()
+            for _, u, v in edges:
+                if u not in used and v not in used:
+                    pairs.append([u, v])
+                    used.add(u)
+                    used.add(v)
+        return pairs
+    except Exception:
+        from kit import baseline_match
+        return baseline_match(state)

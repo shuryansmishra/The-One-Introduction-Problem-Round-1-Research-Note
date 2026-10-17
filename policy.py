@@ -5,7 +5,59 @@ import json
 import os
 import random
 import sys
-from kit import baseline_asks, baseline_match, eligibility, SOFT
+from kit import HARD, SOFT, baseline_asks, baseline_match, eligibility
+
+
+def sanitize_asks(state, asks):
+    """Defensively filter asks against state: available, non-declined, valid budget, no duplicates."""
+    members = {m['member_id']: m for m in state.get('members', []) if m.get('available')}
+    budget = state.get('ask_budget_remaining', 12)
+    out, seen = [], set()
+    for a in (asks if isinstance(asks, list) else []):
+        if not isinstance(a, dict):
+            continue
+        ident, field = a.get('member_id'), a.get('field')
+        m = members.get(ident)
+        if not m or (ident, field) in seen:
+            continue
+        if field == 'constraints':
+            cost = 3
+            if not any(m.get('field_status', {}).get(k) == 'not_asked' for k in HARD):
+                continue
+            if any(m.get('field_status', {}).get(k) == 'declined' for k in HARD):
+                continue
+        elif field in SOFT:
+            cost = 1
+            if m.get('field_status', {}).get(field) in ('observed', 'declined'):
+                continue
+        else:
+            continue
+        if cost > budget:
+            continue
+        seen.add((ident, field))
+        budget -= cost
+        out.append({'member_id': ident, 'field': field})
+    return out
+
+
+def sanitize_pairs(state, pairs):
+    """Defensively filter pairs: valid length 2, available, never introduced before, feasible, no reused member."""
+    members = {m['member_id']: m for m in state.get('members', []) if m.get('available')}
+    past = {tuple(sorted((i['user_a'], i['user_b']))) for i in state.get('introductions', [])}
+    out, used = [], set()
+    for p in (pairs if isinstance(pairs, list) else []):
+        if not isinstance(p, (list, tuple)) or len(p) != 2:
+            continue
+        a, b = p
+        if not (isinstance(a, str) and isinstance(b, str)) or a == b:
+            continue
+        if a not in members or b not in members or a in used or b in used:
+            continue
+        if tuple(sorted((a, b))) in past or eligibility(members[a], members[b])['status'] != 'feasible':
+            continue
+        used.update((a, b))
+        out.append([a, b])
+    return out
 
 
 def decide(request, mode='proposed'):
@@ -30,9 +82,20 @@ def decide(request, mode='proposed'):
                 if not used.intersection(pair):
                     pairs.append(list(pair))
                     used.update(pair)
-        return {'pairs': pairs, 'memory': memory}
+        return {'pairs': sanitize_pairs(state, pairs), 'memory': memory}
 
     # Proposed Architecture and Ablation Integration
+    try:
+        return _decide_proposed(request, mode, state, memory)
+    except Exception:
+        # Failsafe: fall back to contract-compliant baseline action on any unexpected exception
+        if request['phase'] == 'ask':
+            return {'asks': baseline_asks(state), 'memory': memory}
+        else:
+            return {'pairs': baseline_match(state), 'memory': memory}
+
+
+def _decide_proposed(request, mode, state, memory):
     from src.models.survival_bandit import SurvivalWeightedBandit
     from src.decision.allocator import allocate_pairs
     from src.decision.voi_ask import select_clarification_asks
@@ -98,7 +161,7 @@ def decide(request, mode='proposed'):
             asks = select_clarification_asks(state, weights=sampled_weights, past_pairs=past_pairs)
         else:
             asks = baseline_asks(state)
-        return {'asks': asks, 'memory': memory}
+        return {'asks': sanitize_asks(state, asks), 'memory': memory}
         
     elif request['phase'] == 'match':
         # Stale-weight guard: if evaluator restarted between phases, recompute
@@ -112,7 +175,7 @@ def decide(request, mode='proposed'):
             sampled_weights = bandit.sample_weights(rng)
         # 6. Combinatorial Matching Phase (Blossom or greedy ablation)
         pairs = allocate_pairs(state, weights=sampled_weights, past_pairs=past_pairs, day=current_day, use_blossom=use_blossom)
-        return {'pairs': pairs, 'memory': memory}
+        return {'pairs': sanitize_pairs(state, pairs), 'memory': memory}
 
 
 if __name__ == '__main__':

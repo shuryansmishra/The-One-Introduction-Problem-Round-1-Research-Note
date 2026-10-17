@@ -81,7 +81,7 @@ def compute_soft_field_voi(member: dict, field: str, available_members: list, we
             if other.get('fields', {}).get(field) is not None:
                 eligible_count += 1
 
-    if eligible_count == 0:
+    if eligible_count < 2:
         return 0.0
     
     # VOI scales with feature weight and number of partners it unlocks
@@ -100,6 +100,7 @@ def select_clarification_asks(state: dict, weights: dict = None, past_pairs: set
     budget = state.get('ask_budget_remaining', 12)
     available = [m for m in state.get('members', []) if m.get('available')]
     past = past_pairs or set()
+    current_day = state.get('day', 0)
     
     candidates = []
     
@@ -109,7 +110,9 @@ def select_clarification_asks(state: dict, weights: dict = None, past_pairs: set
         st = m.get('field_status', {})
         if any(f.get(k) is None for k in HARD) and not any(st.get(k) == 'declined' for k in HARD):
             voi = compute_member_bundle_voi(m, available, past, w)
-            roi = voi / 3.0  # cost = 3
+            # Arrival bonus: newly arrived members (within last 3 days) have maximum remaining horizon
+            arrival_multiplier = 1.4 if (current_day - m.get('arrived_day', 0) <= 2) else 1.0
+            roi = (voi * arrival_multiplier) / 3.0  # cost = 3
             if roi > 0:
                 candidates.append({
                     'ask': {'member_id': m['member_id'], 'field': 'constraints'},
