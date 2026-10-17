@@ -86,9 +86,10 @@ def estimate_expected_msmi(a: dict, b: dict, weights: dict = None, drift_offset:
     """Compute end-to-end Expected MSMI Utility E[U_ij] across the full funnel:
     Introduction -> Mutual Acceptance -> First Date (within 30d) -> Mutual 2nd Meeting (within 3d).
     """
-    # 1. Response probabilities (historical average ~0.76 per member)
-    p_resp_a = 0.76
-    p_resp_b = 0.76
+    # 1. Per-member response probabilities from simulator field (range 0.55–0.98).
+    # Falls back to the empirical average 0.76 if not present.
+    p_resp_a = a.get('response_rate', 0.76)
+    p_resp_b = b.get('response_rate', 0.76)
     p_both_respond = p_resp_a * p_resp_b
     
     # 2. Mutual acceptance

@@ -20,7 +20,7 @@ def max_weight_matching_heuristic(edges: list) -> list:
         G.add_edge(u, v, weight=weight)
         
     # networkx max_weight_matching returns a set of tuples representing matched edges
-    matching = nx.max_weight_matching(G, maxcardinality=False)
+    matching = nx.max_weight_matching(G, maxcardinality=True)
     
     # Convert set of tuples back to list of lists
     return [list(pair) for pair in matching]

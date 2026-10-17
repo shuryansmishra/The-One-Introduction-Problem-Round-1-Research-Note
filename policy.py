@@ -2,6 +2,7 @@
 import argparse
 import itertools
 import json
+import os
 import random
 import sys
 from kit import baseline_asks, baseline_match, eligibility, SOFT
@@ -80,12 +81,16 @@ def decide(request, mode='proposed'):
         # 3. Update Gaussian posteriors using survival-weighted soft labels
         bandit.update_posterior(features_list, labels)
         
-        # 4. Draw Thompson weights for optimistic exploration
-        rng = random.Random(42 + current_day)
+        # 4. Draw Thompson weights — mix OS entropy with day for genuine stochastic
+        #    exploration across separate runs while keeping per-day reproducibility
+        #    within a single episode (entropy seeded per process launch).
+        entropy = int.from_bytes(os.urandom(4), 'big')
+        rng = random.Random(entropy ^ (42 + current_day))
         sampled_weights = bandit.sample_weights(rng)
         
         # Save state to memory before leaving ask phase
         memory['sampled_weights'] = sampled_weights
+        memory['sampled_weights_day'] = current_day   # day-stamp for stale-weight guard
         memory['bandit'] = bandit.to_dict()
         
         # 5. Clarification phase (VOI or ablation baseline ask)
@@ -96,7 +101,15 @@ def decide(request, mode='proposed'):
         return {'asks': asks, 'memory': memory}
         
     elif request['phase'] == 'match':
-        sampled_weights = memory.get('sampled_weights', {})
+        # Stale-weight guard: if evaluator restarted between phases, recompute
+        # weights from the persisted bandit state rather than using stale values.
+        weights_day = memory.get('sampled_weights_day', -1)
+        if weights_day == current_day:
+            sampled_weights = memory.get('sampled_weights', {})
+        else:
+            entropy = int.from_bytes(os.urandom(4), 'big')
+            rng = random.Random(entropy ^ (42 + current_day))
+            sampled_weights = bandit.sample_weights(rng)
         # 6. Combinatorial Matching Phase (Blossom or greedy ablation)
         pairs = allocate_pairs(state, weights=sampled_weights, past_pairs=past_pairs, day=current_day, use_blossom=use_blossom)
         return {'pairs': pairs, 'memory': memory}
